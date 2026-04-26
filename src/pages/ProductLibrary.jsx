@@ -5,7 +5,7 @@ import { convertUnitPrice, convertNetContentUnitPrice, isCountUnit, getStandardN
 import { PLATFORM_OPTIONS, UNIT_OPTIONS, CATEGORY_OPTIONS, NET_CONTENT_UNIT_OPTIONS } from '../utils/constants'
 
 export default function ProductLibrary() {
-  const { products, addProduct, addProducts, updateProduct, deleteProduct } = useProducts()
+  const { products, addProduct, addProducts, updateProduct, deleteProduct, clearAllProducts } = useProducts()
   const { addToCart } = usePlans()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -30,6 +30,7 @@ export default function ProductLibrary() {
   })
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [showConverter, setShowConverter] = useState(false)
   const [converterData, setConverterData] = useState({
     mainUnit: 1,
@@ -40,6 +41,8 @@ export default function ProductLibrary() {
   const [showImportModal, setShowImportModal] = useState(false)
   const [importFile, setImportFile] = useState(null)
   const [importPreview, setImportPreview] = useState(null)
+  const [isExportMode, setIsExportMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState(new Set())
 
   // 实时计算换算结果
   useEffect(() => {
@@ -149,6 +152,60 @@ export default function ProductLibrary() {
     setDeletingId(null)
   }
 
+  // 复制商品
+  const handleCopy = (product) => {
+    resetForm()
+    const { id, createdAt, ...rest } = product
+    setFormData({ ...rest })
+    setEditingId(null)
+    setShowForm(true)
+  }
+
+  // 导出选中的商品
+  const handleExportSelected = () => {
+    if (selectedIds.size === 0) {
+      alert('请先选择要导出的商品')
+      return
+    }
+    
+    const selectedProducts = products.filter(p => selectedIds.has(p.id))
+    const headers = ['商品名', '品牌', '规格描述', '数量', '单位', '价格', '平台', '品类', '备注', '净含量数值', '净含量单位', '换算说明']
+    
+    const rows = selectedProducts.map(p => {
+      let conversionNote = ''
+      if (p.converterMainUnit && p.converterMiddleUnit) {
+        conversionNote = `${p.converterMainUnit}${p.converterMiddleUnitName || ''}×${p.converterMiddleUnit}`
+      }
+      return [
+        p.productName,
+        p.brand || '',
+        p.spec || '',
+        p.quantity,
+        p.unit,
+        p.price,
+        p.platform,
+        p.category,
+        p.notes || '',
+        p.netContent || '',
+        p.netContentUnit || '',
+        conversionNote
+      ]
+    })
+    
+    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `huigou_export_${date}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    
+    setIsExportMode(false)
+    setSelectedIds(new Set())
+  }
+
   // CSV导入相关函数
   const parseCSV = (text) => {
     const lines = text.trim().split('\n').map(line => line.replace(/\r$/, ''))
@@ -222,12 +279,8 @@ export default function ProductLibrary() {
       // 计算单价
       const unitPrice = convertUnitPrice(price, quantity, unit)
       
-      // 处理备注和换算说明
-      let notes = row['备注'] || ''
-      const conversionNote = row['换算说明']
-      if (conversionNote) {
-        notes = notes ? `${notes} 换算：${conversionNote}` : `换算：${conversionNote}`
-      }
+      // 处理备注（只保留用户填写的备注，换算信息单独存储）
+      const notes = row['备注'] || ''
       
       // 处理净含量相关字段
       let netContentValue = row['净含量数值'] ? parseFloat(row['净含量数值']) : null
@@ -315,11 +368,37 @@ export default function ProductLibrary() {
       return
     }
     
-    addProducts(importPreview.success)
+    let addedCount = 0
+    let updatedCount = 0
+    let skippedCount = 0
     
-    const addedCount = importPreview.success.length
-    const skippedCount = importPreview.errors.length
-    alert(`成功导入 ${addedCount} 条${skippedCount > 0 ? `，跳过 ${skippedCount} 条` : ''}`)
+    importPreview.success.forEach((item) => {
+      // 判断是否已存在：商品名 + 品牌 + 规格描述 + 数量 + 单位 + 净含量单位 + 换算说明
+      const matchKey = `${item.productName}|${item.brand}|${item.spec}|${item.quantity}|${item.unit}|${item.netContentUnit}|${item.converterMainUnit}${item.converterMiddleUnit}`
+      const existingIndex = products.findIndex((p) => {
+        const pMatchKey = `${p.productName}|${p.brand}|${p.spec}|${p.quantity}|${p.unit}|${p.netContentUnit}|${p.converterMainUnit}${p.converterMiddleUnit}`
+        return pMatchKey === matchKey
+      })
+      
+      if (existingIndex !== -1) {
+        // 库里已有该商品，比较价格
+        const existing = products[existingIndex]
+        if (item.price < existing.price) {
+          // CSV价格更低，覆盖
+          updateProduct(existing.id, item)
+          updatedCount++
+        } else {
+          // 库里的价格更低或相等，跳过
+          skippedCount++
+        }
+      } else {
+        // 新增商品
+        addProduct(item)
+        addedCount++
+      }
+    })
+    
+    alert(`成功新增 ${addedCount} 条${updatedCount > 0 ? `，覆盖 ${updatedCount} 条（价格更低）` : ''}${skippedCount > 0 ? `，跳过 ${skippedCount} 条（已有更低价）` : ''}`)
     
     setShowImportModal(false)
     setImportFile(null)
@@ -337,25 +416,36 @@ export default function ProductLibrary() {
       {/* 页面标题 */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-gray-800">商品参考库</h1>
-        <button
-          onClick={() => {
-            resetForm()
-            setShowForm(true)
-          }}
-          className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
-        >
-          + 新增商品
-        </button>
-        <button
-          onClick={() => {
-            setShowImportModal(true)
-            setImportFile(null)
-            setImportPreview(null)
-          }}
-          className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
-        >
-          📥 导入CSV
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              resetForm()
+              setShowForm(true)
+            }}
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          >
+            + 新增商品
+          </button>
+          <button
+            onClick={() => {
+              setShowImportModal(true)
+              setImportFile(null)
+              setImportPreview(null)
+            }}
+            className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          >
+            📥 导入CSV
+          </button>
+          <button
+            onClick={() => {
+              setIsExportMode(true)
+              setSelectedIds(new Set())
+            }}
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          >
+            📤 导出
+          </button>
+        </div>
       </div>
 
       {/* 搜索筛选区 */}
@@ -403,6 +493,16 @@ export default function ProductLibrary() {
             ))}
           </select>
         </div>
+        <div className="flex justify-end">
+          {products.length > 0 && (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="px-3 py-1 text-sm text-red-500 border border-red-500 rounded"
+            >
+              清空所有商品
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 商品列表 */}
@@ -413,7 +513,25 @@ export default function ProductLibrary() {
           </div>
         ) : (
           filteredProducts.map((product) => (
-            <div key={product.id} className="bg-white rounded-lg p-4 shadow-sm">
+            <div key={product.id} className="bg-white rounded-lg p-4 shadow-sm relative">
+              {isExportMode && (
+                <div className="absolute top-2 left-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(product.id)}
+                    onChange={() => {
+                      const newSelected = new Set(selectedIds)
+                      if (newSelected.has(product.id)) {
+                        newSelected.delete(product.id)
+                      } else {
+                        newSelected.add(product.id)
+                      }
+                      setSelectedIds(newSelected)
+                    }}
+                    className="w-5 h-5 rounded"
+                  />
+                </div>
+              )}
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="font-medium text-gray-800">{product.productName}</div>
@@ -439,6 +557,11 @@ export default function ProductLibrary() {
               {product.notes && (
                 <div className="mt-2 text-xs text-orange-500 bg-orange-50 px-2 py-1 rounded">
                   备注: {product.notes}
+                </div>
+              )}
+              {product.converterMainUnit && product.converterMiddleUnit && (
+                <div className="mt-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                  换算：{product.converterMainUnit}{product.converterMiddleUnitName || ''}×{product.converterMiddleUnit}
                 </div>
               )}
               <div className="mt-3 flex gap-2">
@@ -481,11 +604,52 @@ export default function ProductLibrary() {
                 >
                   删除
                 </button>
+                <button
+                  onClick={() => handleCopy(product)}
+                  className="flex-1 text-sm text-orange-500 border border-orange-500 rounded py-1"
+                >
+                  复制
+                </button>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* 导出模式底部操作栏 */}
+      {isExportMode && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex gap-3 items-center justify-center shadow-lg">
+          <button
+            onClick={() => {
+              const allIds = filteredProducts.map(p => p.id)
+              setSelectedIds(new Set(allIds))
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm"
+          >
+            全选
+          </button>
+          <button
+            onClick={() => {
+              setIsExportMode(false)
+              setSelectedIds(new Set())
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleExportSelected}
+            disabled={selectedIds.size === 0}
+            className={`px-4 py-2 rounded-lg text-sm ${
+              selectedIds.size > 0
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            导出已选({selectedIds.size}条)
+          </button>
+        </div>
+      )}
 
       {/* 新增/编辑表单弹窗 */}
       {showForm && (
@@ -901,6 +1065,33 @@ export default function ProductLibrary() {
                 className="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium"
               >
                 确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 清空所有商品确认弹窗 */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-sm p-4">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">确认清空</h3>
+            <p className="text-gray-600 mb-4">确定要清空所有商品记录吗？此操作无法撤销。</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-600 font-medium"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  clearAllProducts()
+                  setShowClearConfirm(false)
+                }}
+                className="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium"
+              >
+                确认清空
               </button>
             </div>
           </div>

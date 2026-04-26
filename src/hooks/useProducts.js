@@ -94,6 +94,12 @@ export default function useProducts() {
     return products.find((p) => p.id === id)
   }
 
+  // 清空所有商品
+  const clearAllProducts = () => {
+    setProducts([])
+    localStorage.removeItem(STORAGE_KEY)
+  }
+
   return {
     products,
     addProduct,
@@ -101,5 +107,6 @@ export default function useProducts() {
     updateProduct,
     deleteProduct,
     getProductById,
+    clearAllProducts,
   }
 }
