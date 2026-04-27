@@ -368,12 +368,11 @@ export default function ProductLibrary() {
       return
     }
     
-    let addedCount = 0
+    const toAdd = []
     let updatedCount = 0
     let skippedCount = 0
     
     importPreview.success.forEach((item) => {
-      // 判断是否已存在：商品名 + 品牌 + 规格描述 + 数量 + 单位 + 净含量单位 + 换算说明
       const matchKey = `${item.productName}|${item.brand}|${item.spec}|${item.quantity}|${item.unit}|${item.netContentUnit}|${item.converterMainUnit}${item.converterMiddleUnit}`
       const existingIndex = products.findIndex((p) => {
         const pMatchKey = `${p.productName}|${p.brand}|${p.spec}|${p.quantity}|${p.unit}|${p.netContentUnit}|${p.converterMainUnit}${p.converterMiddleUnit}`
@@ -381,23 +380,23 @@ export default function ProductLibrary() {
       })
       
       if (existingIndex !== -1) {
-        // 库里已有该商品，比较价格
         const existing = products[existingIndex]
         if (item.price < existing.price) {
-          // CSV价格更低，覆盖
           updateProduct(existing.id, item)
           updatedCount++
         } else {
-          // 库里的价格更低或相等，跳过
           skippedCount++
         }
       } else {
-        // 新增商品
-        addProduct(item)
-        addedCount++
+        toAdd.push(item)
       }
     })
     
+    if (toAdd.length > 0) {
+      addProducts(toAdd)
+    }
+    
+    const addedCount = toAdd.length
     alert(`成功新增 ${addedCount} 条${updatedCount > 0 ? `，覆盖 ${updatedCount} 条（价格更低）` : ''}${skippedCount > 0 ? `，跳过 ${skippedCount} 条（已有更低价）` : ''}`)
     
     setShowImportModal(false)
@@ -441,7 +440,7 @@ export default function ProductLibrary() {
               setIsExportMode(true)
               setSelectedIds(new Set())
             }}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${isExportMode ? 'bg-gray-500 text-white' : 'bg-blue-gray-500 text-white bg-slate-500'}`}
           >
             📤 导出
           </button>
@@ -514,27 +513,27 @@ export default function ProductLibrary() {
         ) : (
           filteredProducts.map((product) => (
             <div key={product.id} className="bg-white rounded-lg p-4 shadow-sm relative">
-              {isExportMode && (
-                <div className="absolute top-2 left-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(product.id)}
-                    onChange={() => {
-                      const newSelected = new Set(selectedIds)
-                      if (newSelected.has(product.id)) {
-                        newSelected.delete(product.id)
-                      } else {
-                        newSelected.add(product.id)
-                      }
-                      setSelectedIds(newSelected)
-                    }}
-                    className="w-5 h-5 rounded"
-                  />
-                </div>
-              )}
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <div className="font-medium text-gray-800">{product.productName}</div>
+                  <div className="flex items-center">
+                    {isExportMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(product.id)}
+                        onChange={(e) => {
+                          const next = new Set(selectedIds)
+                          if (e.target.checked) {
+                            next.add(product.id)
+                          } else {
+                            next.delete(product.id)
+                          }
+                          setSelectedIds(next)
+                        }}
+                        className="mr-2 w-4 h-4 mt-1"
+                      />
+                    )}
+                    <div className="font-medium text-gray-800">{product.productName}</div>
+                  </div>
                   <div className="text-sm text-gray-500">{product.brand} · {product.quantity}{product.unit}</div>
                   <div className="text-sm text-gray-500 mt-1">
                     {product.platform} · {product.category}
@@ -618,32 +617,36 @@ export default function ProductLibrary() {
 
       {/* 导出模式底部操作栏 */}
       {isExportMode && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex gap-3 items-center justify-center shadow-lg">
+        <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-3 shadow-lg z-40">
           <button
+            type="button"
             onClick={() => {
-              const allIds = filteredProducts.map(p => p.id)
-              setSelectedIds(new Set(allIds))
+              if (selectedIds.size === products.length) {
+                setSelectedIds(new Set())
+              } else {
+                setSelectedIds(new Set(products.map(p => p.id)))
+              }
             }}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm"
+            className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600"
           >
-            全选
+            {selectedIds.size === products.length ? '取消全选' : '全选'}
           </button>
           <button
+            type="button"
             onClick={() => {
               setIsExportMode(false)
               setSelectedIds(new Set())
             }}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm"
+            className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600"
           >
             取消
           </button>
           <button
+            type="button"
             onClick={handleExportSelected}
             disabled={selectedIds.size === 0}
-            className={`px-4 py-2 rounded-lg text-sm ${
-              selectedIds.size > 0
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+              selectedIds.size > 0 ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           >
             导出已选({selectedIds.size}条)
