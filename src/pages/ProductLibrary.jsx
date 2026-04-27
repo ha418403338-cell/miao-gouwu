@@ -231,7 +231,7 @@ export default function ProductLibrary() {
         continue
       }
       
-      const values = line.split(',').map(v => v.trim())
+      const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
       const row = {}
       header.forEach((h, idx) => {
         row[h] = values[idx] || ''
