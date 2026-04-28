@@ -504,6 +504,15 @@ export default function ProductLibrary() {
         </div>
       </div>
 
+      {/* 统计栏 */}
+      <div className="flex justify-end mb-3">
+        <span className="text-sm text-gray-500">
+          {(!searchKeyword && !filterPlatform && !filterCategory) 
+            ? `共 ${products.length} 条商品` 
+            : `筛选结果 ${filteredProducts.length} 条 / 共 ${products.length} 条`}
+        </span>
+      </div>
+
       {/* 商品列表 */}
       <div className="space-y-3">
         {filteredProducts.length === 0 ? (

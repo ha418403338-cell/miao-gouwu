@@ -92,6 +92,18 @@ export default function usePlans() {
             isPurchased: true,
             purchasedAt: new Date().toISOString(),
             actualPaid,
+            paidAmount: actualPaid,
+            items: p.items.map((item) => {
+              const ratio = item.subtotal / p.totalOriginal
+              const actualPaidTotal = Math.round(actualPaid * ratio * 100) / 100
+              const actualPaidPrice = Math.round(actualPaidTotal / item.quantity * 100) / 100
+              return {
+                ...item,
+                originalPrice: item.unitPrice,
+                actualPaidTotal,
+                actualPaidPrice,
+              }
+            }),
           }
         : p
     )
@@ -130,6 +142,7 @@ export default function usePlans() {
         netContentUnit: item.netContentUnit || null,
         netContentUnitPrice: item.netContentUnitPrice || null,
         subtotal: (item.quantity || 1) * item.unitPrice,
+        isPinned: false,
       }
       const newCart = [...cartItems, newItem]
       setCartItems(newCart)
@@ -169,6 +182,15 @@ export default function usePlans() {
     saveCartToStorage(newCart)
   }
 
+  // 切换待购清单商品置顶状态
+  const toggleCartItemPin = (productId) => {
+    const updated = cartItems.map((ci) =>
+      ci.productId === productId ? { ...ci, isPinned: !ci.isPinned } : ci
+    )
+    setCartItems(updated)
+    saveCartToStorage(updated)
+  }
+
   return {
     plans,
     cartItems,
@@ -181,5 +203,6 @@ export default function usePlans() {
     removeFromCartBatch,
     updateCartItemQuantity,
     clearCart,
+    toggleCartItemPin,
   }
 }

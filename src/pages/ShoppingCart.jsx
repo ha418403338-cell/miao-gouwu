@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import usePlans from '../hooks/usePlans'
+import useProducts from '../hooks/useProducts'
 import { PLATFORM_OPTIONS } from '../utils/constants'
 const COUPON_TYPES = [
   { value: 'full_reduce', label: '满减券' },
@@ -8,10 +9,13 @@ const COUPON_TYPES = [
 ]
 
 export default function ShoppingCart({ onNavigate }) {
-  const { cartItems, removeFromCart, updateCartItemQuantity, clearCart, removeFromCartBatch, addPlan } = usePlans()
+  const { cartItems, removeFromCart, updateCartItemQuantity, clearCart, removeFromCartBatch, addPlan, toggleCartItemPin } = usePlans()
+  const { addProduct } = useProducts()
   const [selectedItems, setSelectedItems] = useState([])
   const [showCreatePlan, setShowCreatePlan] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingItem, setEditingItem] = useState(null)
   const [planFormData, setPlanFormData] = useState({
     planName: '',
     platform: '京东',
@@ -170,104 +174,143 @@ export default function ShoppingCart({ onNavigate }) {
 
           {/* 商品列表 */}
           <div className="space-y-3 pb-24">
-            {cartItems.map((item) => (
-              <div
-                key={item.productId}
-                className={`bg-white rounded-lg p-4 shadow-sm ${
-                  selectedItems.includes(item.productId) ? 'ring-2 ring-blue-300' : ''
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedItems.includes(item.productId)}
-                    onChange={() => toggleSelect(item.productId)}
-                    className="w-4 h-4 text-blue-500 mt-1"
-                  />
-                  <div className="flex-1">
-                    {item.brand && (
-                      <div className="font-medium text-gray-800">{item.brand}</div>
-                    )}
-                    <div className="text-sm text-gray-500">{item.productName}</div>
-                    {item.spec && (
-                      <div className="text-sm text-gray-500">{item.spec}</div>
-                    )}
-                    <div className="text-sm text-gray-500 mt-1">
-                      {item.platform} · {item.quantity}{item.unit}
+            {cartItems
+              .sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0))
+              .map((item) => (
+                <div
+                  key={item.productId}
+                  className={`bg-white rounded-lg p-4 shadow-sm relative ${
+                    selectedItems.includes(item.productId) ? 'ring-2 ring-blue-300' : ''
+                  }`}
+                >
+                  {item.isPinned && (
+                    <div className="absolute top-2 right-2 text-gray-400 text-lg">
+                      📌
                     </div>
-                    
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <div className="text-blue-500 font-medium">
-                        单价: ¥{item.unitPrice.toFixed(2)}
-                      </div>
-                      {item.netContentUnitPrice !== null && item.netContentUnitPrice !== undefined && (
-                        <div className="text-green-500 text-sm">
-                          净含量: ¥{item.netContentUnitPrice.toFixed(4)}/{item.netContentUnit}
-                          {item.converterMainUnit && item.converterMiddleUnitName && (
-                            <span className="text-xs text-gray-500 ml-2">
-                              （1{item.unit}={item.converterMainUnit}{item.converterMiddleUnitName}×{item.converterMiddleUnit}{item.netContentUnit}）
-                            </span>
-                          )}
-                        </div>
+                  )}
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.includes(item.productId)}
+                      onChange={() => toggleSelect(item.productId)}
+                      className="w-4 h-4 text-blue-500 mt-1"
+                    />
+                    <div className="flex-1">
+                      {item.brand && (
+                        <div className="font-medium text-gray-800">{item.brand}</div>
                       )}
-                    </div>
-
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="text-lg font-bold text-blue-600">
-                        ¥{item.subtotal.toFixed(2)}
+                      <div className="text-sm text-gray-500">{item.productName}</div>
+                      {item.spec && (
+                        <div className="text-sm text-gray-500">{item.spec}</div>
+                      )}
+                      <div className="text-sm text-gray-500 mt-1">
+                        {item.platform} · {item.quantity}{item.unit}
                       </div>
-                      <div className="flex items-center gap-2">
+                      
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <div className="text-blue-500 font-medium">
+                          单价: ¥{item.unitPrice.toFixed(2)}
+                        </div>
+                        {item.netContentUnitPrice !== null && item.netContentUnitPrice !== undefined && (
+                          <div className="text-green-500 text-sm">
+                            净含量: ¥{item.netContentUnitPrice.toFixed(4)}/{item.netContentUnit}
+                            {item.converterMainUnit && item.converterMiddleUnitName && (
+                              <span className="text-xs text-gray-500 ml-2">
+                                （1{item.unit}={item.converterMainUnit}{item.converterMiddleUnitName}×{item.converterMiddleUnit}{item.netContentUnit}）
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between mt-3">
+                        <div className="text-lg font-bold text-blue-600">
+                          ¥{item.subtotal.toFixed(2)}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (item.quantity > 1) {
+                                updateCartItemQuantity(item.productId, item.quantity - 1)
+                              }
+                            }}
+                            className="w-8 h-8 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value)
+                              if (!isNaN(val) && val >= 1) {
+                                updateCartItemQuantity(item.productId, val)
+                              }
+                            }}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value)
+                              if (isNaN(val) || val < 1) {
+                                updateCartItemQuantity(item.productId, 1)
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.target.blur()
+                              }
+                            }}
+                            className="w-12 text-center border border-gray-300 rounded py-1"
+                          />
+                          <button
+                            onClick={() => updateCartItemQuantity(item.productId, item.quantity + 1)}
+                            className="w-8 h-8 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 操作按钮 */}
+                      <div className="flex gap-2 mt-3">
                         <button
                           onClick={() => {
-                            if (item.quantity > 1) {
-                              updateCartItemQuantity(item.productId, item.quantity - 1)
-                            }
+                            setEditingItem(item)
+                            setShowEditModal(true)
                           }}
-                          className="w-8 h-8 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                          className="px-3 py-1 text-sm border border-blue-500 text-blue-500 rounded"
                         >
-                          -
+                          编辑
                         </button>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value)
-                            if (!isNaN(val) && val >= 1) {
-                              updateCartItemQuantity(item.productId, val)
-                            }
-                          }}
-                          onBlur={(e) => {
-                            const val = parseInt(e.target.value)
-                            if (isNaN(val) || val < 1) {
-                              updateCartItemQuantity(item.productId, 1)
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.target.blur()
-                            }
-                          }}
-                          className="w-12 text-center border border-gray-300 rounded py-1"
-                        />
                         <button
-                          onClick={() => updateCartItemQuantity(item.productId, item.quantity + 1)}
-                          className="w-8 h-8 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100"
+                          onClick={() => {
+                            const newProduct = { ...item }
+                            delete newProduct.productId
+                            delete newProduct.subtotal
+                            delete newProduct.isPinned
+                            addProduct(newProduct)
+                            alert('商品已复制到参考库！')
+                          }}
+                          className="px-3 py-1 text-sm border border-orange-500 text-orange-500 rounded"
                         >
-                          +
+                          复制
+                        </button>
+                        <button
+                          onClick={() => toggleCartItemPin(item.productId)}
+                          className="px-3 py-1 text-sm border border-gray-400 text-gray-500 rounded"
+                        >
+                          {item.isPinned ? '取消置顶' : '置顶'}
                         </button>
                       </div>
                     </div>
+                    <button
+                      onClick={() => removeFromCart(item.productId)}
+                      className="text-gray-400 hover:text-red-500 p-1"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <button
-                    onClick={() => removeFromCart(item.productId)}
-                    className="text-gray-400 hover:text-red-500 p-1"
-                  >
-                    ✕
-                  </button>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
 
           {/* 底部统计和创建方案按钮 */}
@@ -471,6 +514,128 @@ export default function ShoppingCart({ onNavigate }) {
               >
                 确认清空
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 编辑商品弹窗 */}
+      {showEditModal && editingItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b">
+              <h2 className="text-lg font-bold">编辑商品</h2>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">商品名</label>
+                <input
+                  type="text"
+                  value={editingItem.productName || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, productName: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">品牌</label>
+                <input
+                  type="text"
+                  value={editingItem.brand || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, brand: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">规格描述</label>
+                <input
+                  type="text"
+                  value={editingItem.spec || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, spec: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">数量</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editingItem.quantity || 1}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 1
+                      setEditingItem({ 
+                        ...editingItem, 
+                        quantity: val,
+                        subtotal: val * editingItem.unitPrice 
+                      })
+                    }}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">单位</label>
+                  <input
+                    type="text"
+                    value={editingItem.unit || ''}
+                    onChange={(e) => setEditingItem({ ...editingItem, unit: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">单价(元)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editingItem.unitPrice || ''}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0
+                    setEditingItem({ 
+                      ...editingItem, 
+                      unitPrice: val,
+                      subtotal: editingItem.quantity * val 
+                    })
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">平台</label>
+                <select
+                  value={editingItem.platform || '京东'}
+                  onChange={(e) => setEditingItem({ ...editingItem, platform: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  {PLATFORM_OPTIONS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 py-2 border rounded-lg text-gray-600"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateCartItemQuantity(editingItem.productId, editingItem.quantity)
+                    const newCart = cartItems.map(ci => 
+                      ci.productId === editingItem.productId ? editingItem : ci
+                    )
+                    localStorage.setItem('huibi_cart', JSON.stringify(newCart))
+                    setShowEditModal(false)
+                    alert('商品已更新！')
+                  }}
+                  className="flex-1 py-2 bg-blue-500 text-white rounded-lg font-medium"
+                >
+                  保存
+                </button>
+              </div>
             </div>
           </div>
         </div>
