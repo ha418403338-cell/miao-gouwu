@@ -16,6 +16,9 @@ export default function ShoppingCart({ onNavigate }) {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
+  const [isCopyMode, setIsCopyMode] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [planFormData, setPlanFormData] = useState({
     planName: '',
     platform: '京东',
@@ -283,12 +286,9 @@ export default function ShoppingCart({ onNavigate }) {
                         </button>
                         <button
                           onClick={() => {
-                            const newProduct = { ...item }
-                            delete newProduct.productId
-                            delete newProduct.subtotal
-                            delete newProduct.isPinned
-                            addProduct(newProduct)
-                            alert('商品已复制到参考库！')
+                            setEditingItem(item)
+                            setIsCopyMode(true)
+                            setShowEditModal(true)
                           }}
                           className="px-3 py-1 text-sm border border-orange-500 text-orange-500 rounded"
                         >
@@ -303,7 +303,10 @@ export default function ShoppingCart({ onNavigate }) {
                       </div>
                     </div>
                     <button
-                      onClick={() => removeFromCart(item.productId)}
+                      onClick={() => {
+                        setDeleteTarget(item)
+                        setShowDeleteConfirm(true)
+                      }}
                       className="text-gray-400 hover:text-red-500 p-1"
                     >
                       ✕
@@ -563,10 +566,12 @@ export default function ShoppingCart({ onNavigate }) {
                     value={editingItem.quantity || 1}
                     onChange={(e) => {
                       const val = parseInt(e.target.value) || 1
+                      const totalPrice = editingItem.subtotal || (editingItem.unitPrice * editingItem.quantity)
                       setEditingItem({ 
                         ...editingItem, 
                         quantity: val,
-                        subtotal: val * editingItem.unitPrice 
+                        subtotal: totalPrice,
+                        unitPrice: totalPrice / val
                       })
                     }}
                     className="w-full px-3 py-2 border rounded-lg"
@@ -583,21 +588,25 @@ export default function ShoppingCart({ onNavigate }) {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">单价(元)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">总价（元）</label>
                 <input
                   type="number"
                   step="0.01"
-                  value={editingItem.unitPrice || ''}
+                  value={editingItem.subtotal || (editingItem.unitPrice * editingItem.quantity).toFixed(2)}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value) || 0
+                    const qty = editingItem.quantity || 1
                     setEditingItem({ 
                       ...editingItem, 
-                      unitPrice: val,
-                      subtotal: editingItem.quantity * val 
+                      subtotal: val,
+                      unitPrice: qty > 0 ? val / qty : 0
                     })
                   }}
                   className="w-full px-3 py-2 border rounded-lg"
                 />
+                <div className="text-xs text-gray-400 mt-1">
+                  单价 = ¥{editingItem.quantity > 0 ? ((editingItem.subtotal || 0) / editingItem.quantity).toFixed(2) : '0.00'}/{editingItem.unit || '件'}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">平台</label>
@@ -623,19 +632,59 @@ export default function ShoppingCart({ onNavigate }) {
                 <button
                   type="button"
                   onClick={() => {
-                    updateCartItemQuantity(editingItem.productId, editingItem.quantity)
-                    const newCart = cartItems.map(ci => 
-                      ci.productId === editingItem.productId ? editingItem : ci
-                    )
-                    localStorage.setItem('huibi_cart', JSON.stringify(newCart))
+                    if (isCopyMode) {
+                      const newItem = { ...editingItem }
+                      delete newItem.productId
+                      addToCart(newItem)
+                      alert('商品已复制到待购清单！')
+                    } else {
+                      updateCartItemQuantity(editingItem.productId, editingItem.quantity)
+                      const newCart = cartItems.map(ci => 
+                        ci.productId === editingItem.productId ? editingItem : ci
+                      )
+                      localStorage.setItem('huibi_cart', JSON.stringify(newCart))
+                      alert('商品已更新！')
+                    }
                     setShowEditModal(false)
-                    alert('商品已更新！')
+                    setIsCopyMode(false)
+                    setEditingItem(null)
                   }}
                   className="flex-1 py-2 bg-blue-500 text-white rounded-lg font-medium"
                 >
-                  保存
+                  {isCopyMode ? '复制' : '保存'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 删除确认弹窗 */}
+      {showDeleteConfirm && deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-sm p-4">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">确认删除</h3>
+            <p className="text-gray-600 mb-4">确定要删除「{deleteTarget.productName}」吗？</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false)
+                  setDeleteTarget(null)
+                }}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-600 font-medium"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  removeFromCart(deleteTarget.productId)
+                  setShowDeleteConfirm(false)
+                  setDeleteTarget(null)
+                }}
+                className="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium"
+              >
+                确认删除
+              </button>
             </div>
           </div>
         </div>

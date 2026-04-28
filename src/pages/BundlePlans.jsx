@@ -214,7 +214,7 @@ export default function BundlePlans() {
                   </div>
                 )}
                 <div className="flex justify-between items-start mb-2">
-                  <div>
+                  <div className="flex items-center gap-2">
                     <div className={`font-medium ${
                       plan.isPurchased ? 'text-gray-600' : 'text-gray-800'
                     }`}>{plan.planName}</div>
@@ -480,8 +480,8 @@ export default function BundlePlans() {
 
                             {/* 参考库对比区域 */}
                             <div className="border-t pt-3 mt-3">
-                              <div className="text-xs font-medium text-gray-500 mb-2">参考库对比</div>
-                              <div className="space-y-1">
+                              <div className="text-sm font-bold text-gray-700 mb-3">参考库对比</div>
+                              <div className="space-y-3">
                                 {(() => {
                                   const comparedItems = {}
                                   plan.items.forEach(item => {
@@ -507,36 +507,36 @@ export default function BundlePlans() {
                                       const isCheaper = currentPrice < minPrice
                                       
                                       result.push(
-                                        <div key={`${item.productName}|${item.brand}`} className="flex justify-between items-center text-xs">
-                                          <span className={isCheaper ? 'text-green-600' : 'text-gray-500'}>
-                                            {isCheaper && '✓ '}
-                                            {item.brand ? `${item.brand}·` : ''}{item.productName}
-                                            <span className="text-gray-400 ml-1">
-                                              参考库最低¥{minPrice.toFixed(2)}/件，本次¥{currentPrice.toFixed(2)}
+                                        <div key={`${item.productName}|${item.brand}`} className="border-b border-gray-100 pb-2 last:border-0">
+                                          <div className="flex justify-between items-start mb-1">
+                                            <span className={`text-sm ${isCheaper ? 'text-green-600' : 'text-gray-500'}`}>
+                                              {item.brand ? `${item.brand}·` : ''}{item.productName}
                                             </span>
-                                            {!isCheaper && '，价格持平或偏高'}
-                                          </span>
-                                          {isCheaper && (
-                                            <button
-                                              onClick={() => {
-                                                const newProduct = {
-                                                  productName: item.productName,
-                                                  brand: item.brand || '',
-                                                  spec: item.spec || '',
-                                                  platform: plan.platform,
-                                                  quantity: item.quantity,
-                                                  unit: item.unit || '件',
-                                                  price: currentPrice,
-                                                  unitPrice: currentPrice,
-                                                }
-                                                addProduct(newProduct)
-                                                alert('已添加到参考库！')
-                                              }}
-                                              className="text-xs text-green-500 border border-green-500 px-2 py-0.5 rounded"
-                                            >
-                                              + 加入参考库
-                                            </button>
-                                          )}
+                                            {isCheaper && (
+                                              <button
+                                                onClick={() => {
+                                                  const newProduct = {
+                                                    productName: item.productName,
+                                                    brand: item.brand || '',
+                                                    spec: item.spec || '',
+                                                    platform: plan.platform,
+                                                    quantity: item.quantity,
+                                                    unit: item.unit || '件',
+                                                    price: currentPrice,
+                                                    unitPrice: currentPrice,
+                                                  }
+                                                  addProduct(newProduct)
+                                                  alert('已添加到参考库！')
+                                                }}
+                                                className="text-xs text-green-500 border border-green-500 px-2 py-0.5 rounded"
+                                              >
+                                                +加入参考库
+                                              </button>
+                                            )}
+                                          </div>
+                                          <div className={`text-xs ${isCheaper ? 'text-green-600' : 'text-gray-500'}`}>
+                                            参考库最低 ¥{minPrice.toFixed(2)}/件　　本次 ¥{currentPrice.toFixed(2)}/件　　{isCheaper ? '更划算✓' : '持平'}
+                                          </div>
                                         </div>
                                       )
                                     }

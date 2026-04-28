@@ -74,6 +74,45 @@ export default function QuickCompare() {
     }))
   }, [converterData.mainUnit, converterData.middleUnit])
 
+  // 保存状态到 localStorage
+  useEffect(() => {
+    const stateToSave = {
+      rows,
+      compareResult,
+      singleItem,
+      showConverter,
+      converterData,
+    }
+    localStorage.setItem('huibi_temp_compare', JSON.stringify(stateToSave))
+  }, [rows, compareResult, singleItem, showConverter, converterData])
+
+  // 从 localStorage 恢复状态
+  useEffect(() => {
+    const saved = localStorage.getItem('huibi_temp_compare')
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (parsed.rows && parsed.rows.length > 0) {
+          setRows(parsed.rows)
+        }
+        if (parsed.compareResult) {
+          setCompareResult(parsed.compareResult)
+        }
+        if (parsed.singleItem) {
+          setSingleItem(parsed.singleItem)
+        }
+        if (parsed.showConverter !== undefined) {
+          setShowConverter(parsed.showConverter)
+        }
+        if (parsed.converterData) {
+          setConverterData(parsed.converterData)
+        }
+      } catch (e) {
+        console.error('恢复临时比价状态失败:', e)
+      }
+    }
+  }, [])
+
   // 添加新行
   const addRow = () => {
     if (rows.length >= 10) return
@@ -262,6 +301,7 @@ export default function QuickCompare() {
   const resetCompare = () => {
     setRows([createEmptyRow()])
     setCompareResult(null)
+    localStorage.removeItem('huibi_temp_compare')
   }
 
   return (
