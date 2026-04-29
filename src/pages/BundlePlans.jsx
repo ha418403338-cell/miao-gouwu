@@ -204,15 +204,6 @@ export default function BundlePlans() {
                   ? 'bg-white/70 opacity-80' 
                   : 'bg-white'
               }`}>
-                {/* 已购买角标 */}
-                {plan.isPurchased && (
-                  <div className="absolute top-0 left-0 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-bl-lg rounded-tr-lg">
-                    ✓ 已购买
-                    <div className="text-xs opacity-80">
-                      {new Date(plan.purchasedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                )}
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
                     <div className={`font-medium ${
@@ -221,9 +212,10 @@ export default function BundlePlans() {
                     <div className="text-sm text-gray-500">{plan.platform}</div>
                   </div>
                   {plan.isPurchased && (
-                    <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded">
-                      实付 ¥{plan.actualPaid}
-                    </span>
+                    <div className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded text-right">
+                      <div>✓ 已购买 {new Date(plan.purchasedAt).toLocaleDateString()}</div>
+                      <div className="font-medium">实付 ¥{plan.actualPaid}</div>
+                    </div>
                   )}
                 </div>
 

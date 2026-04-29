@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import usePlans from '../hooks/usePlans'
 import useProducts from '../hooks/useProducts'
-import { PLATFORM_OPTIONS } from '../utils/constants'
+import { PLATFORM_OPTIONS, UNIT_OPTIONS } from '../utils/constants'
 const COUPON_TYPES = [
   { value: 'full_reduce', label: '满减券' },
   { value: 'discount', label: '折扣券' },
@@ -19,6 +19,7 @@ export default function ShoppingCart({ onNavigate }) {
   const [isCopyMode, setIsCopyMode] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false)
   const [planFormData, setPlanFormData] = useState({
     planName: '',
     platform: '京东',
@@ -70,10 +71,13 @@ export default function ShoppingCart({ onNavigate }) {
   // 删除选中商品
   const deleteSelected = () => {
     if (selectedItems.length === 0) return
-    if (confirm(`确定要删除选中的 ${selectedItems.length} 件商品吗？`)) {
-      removeFromCartBatch(selectedItems)
-      setSelectedItems([])
-    }
+    setShowBatchDeleteConfirm(true)
+  }
+
+  const confirmBatchDelete = () => {
+    removeFromCartBatch(selectedItems)
+    setSelectedItems([])
+    setShowBatchDeleteConfirm(false)
   }
 
   // 创建凑单方案
@@ -277,7 +281,11 @@ export default function ShoppingCart({ onNavigate }) {
                       <div className="flex gap-2 mt-3">
                         <button
                           onClick={() => {
-                            setEditingItem(item)
+                            setEditingItem({
+                              ...item,
+                              subtotal: (item.unitPrice * item.quantity).toFixed(2)
+                            })
+                            setIsCopyMode(false)
                             setShowEditModal(true)
                           }}
                           className="px-3 py-1 text-sm border border-blue-500 text-blue-500 rounded"
@@ -286,7 +294,10 @@ export default function ShoppingCart({ onNavigate }) {
                         </button>
                         <button
                           onClick={() => {
-                            setEditingItem(item)
+                            setEditingItem({
+                              ...item,
+                              subtotal: (item.unitPrice * item.quantity).toFixed(2)
+                            })
                             setIsCopyMode(true)
                             setShowEditModal(true)
                           }}
@@ -563,15 +574,16 @@ export default function ShoppingCart({ onNavigate }) {
                   <input
                     type="number"
                     min="1"
-                    value={editingItem.quantity || 1}
+                    value={editingItem.quantity || ''}
                     onChange={(e) => {
-                      const val = parseInt(e.target.value) || 1
-                      const totalPrice = editingItem.subtotal || (editingItem.unitPrice * editingItem.quantity)
+                      const val = e.target.value
+                      const qty = parseInt(val) || 1
+                      const numVal = parseFloat(editingItem.subtotal) || 0
                       setEditingItem({ 
                         ...editingItem, 
                         quantity: val,
-                        subtotal: totalPrice,
-                        unitPrice: totalPrice / val
+                        subtotal: numVal > 0 ? numVal.toString() : editingItem.subtotal,
+                        unitPrice: qty > 0 && numVal > 0 ? numVal / qty : editingItem.unitPrice
                       })
                     }}
                     className="w-full px-3 py-2 border rounded-lg"
@@ -579,12 +591,15 @@ export default function ShoppingCart({ onNavigate }) {
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">单位</label>
-                  <input
-                    type="text"
+                  <select
                     value={editingItem.unit || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, unit: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg"
-                  />
+                  >
+                    {UNIT_OPTIONS.map((u) => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div>
@@ -592,20 +607,21 @@ export default function ShoppingCart({ onNavigate }) {
                 <input
                   type="number"
                   step="0.01"
-                  value={editingItem.subtotal || (editingItem.unitPrice * editingItem.quantity).toFixed(2)}
+                  value={editingItem.subtotal || ''}
                   onChange={(e) => {
-                    const val = parseFloat(e.target.value) || 0
-                    const qty = editingItem.quantity || 1
+                    const val = e.target.value
+                    const qty = parseInt(editingItem.quantity) || 1
+                    const numVal = parseFloat(val) || 0
                     setEditingItem({ 
                       ...editingItem, 
                       subtotal: val,
-                      unitPrice: qty > 0 ? val / qty : 0
+                      unitPrice: qty > 0 ? numVal / qty : 0
                     })
                   }}
                   className="w-full px-3 py-2 border rounded-lg"
                 />
                 <div className="text-xs text-gray-400 mt-1">
-                  单价 = ¥{editingItem.quantity > 0 ? ((editingItem.subtotal || 0) / editingItem.quantity).toFixed(2) : '0.00'}/{editingItem.unit || '件'}
+                  单价 = ¥{editingItem.quantity > 0 ? ((parseFloat(editingItem.subtotal) || 0) / editingItem.quantity).toFixed(2) : '0.00'}/{editingItem.unit || '件'}
                 </div>
               </div>
               <div>
@@ -681,6 +697,30 @@ export default function ShoppingCart({ onNavigate }) {
                   setShowDeleteConfirm(false)
                   setDeleteTarget(null)
                 }}
+                className="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium"
+              >
+                确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 批量删除确认弹窗 */}
+      {showBatchDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-sm p-4">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">确认删除</h3>
+            <p className="text-gray-600 mb-4">确定要删除选中的 {selectedItems.length} 件商品吗？</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBatchDeleteConfirm(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-600 font-medium"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmBatchDelete}
                 className="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium"
               >
                 确认删除

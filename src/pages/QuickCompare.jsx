@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import useProducts from '../hooks/useProducts'
 import usePlans from '../hooks/usePlans'
 import fuzzyMatch from '../utils/fuzzyMatch'
@@ -28,6 +28,7 @@ export default function QuickCompare() {
   const [compareResult, setCompareResult] = useState(null)
   const [showSaveForm, setShowSaveForm] = useState(false)
   const [saveFormData, setSaveFormData] = useState(null)
+  const isInitialized = useRef(false)
   
   // 单品实时比价状态
   const [singleItem, setSingleItem] = useState({
@@ -76,6 +77,7 @@ export default function QuickCompare() {
 
   // 保存状态到 localStorage
   useEffect(() => {
+    if (!isInitialized.current) return
     const stateToSave = {
       rows,
       compareResult,
@@ -111,6 +113,7 @@ export default function QuickCompare() {
         console.error('恢复临时比价状态失败:', e)
       }
     }
+    isInitialized.current = true
   }, [])
 
   // 添加新行
