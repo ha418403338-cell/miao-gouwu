@@ -211,13 +211,12 @@ export default function BundlePlans() {
                     }`}>{plan.planName}</div>
                     <div className="text-sm text-gray-500">{plan.platform}</div>
                   </div>
-                  {plan.isPurchased && (
-                    <div className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded text-right">
-                      <div>✓ 已购买 {new Date(plan.purchasedAt).toLocaleDateString()}</div>
-                      <div className="font-medium">实付 ¥{plan.actualPaid}</div>
-                    </div>
-                  )}
                 </div>
+                {plan.isPurchased && (
+                  <div className="absolute top-0 right-0 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-bl-lg">
+                    ✓ 已购买 {new Date(plan.purchasedAt).toLocaleDateString()}
+                  </div>
+                )}
 
                 <div className="text-sm text-gray-600 space-y-1 mb-3">
                   {plan.items.map((item, idx) => (
@@ -233,7 +232,16 @@ export default function BundlePlans() {
                           min="1"
                           value={item.quantity}
                           onChange={(e) => {
-                            const newQty = parseInt(e.target.value) || 1
+                            const val = e.target.value
+                            if (val === '') {
+                              const updatedItems = plan.items.map((i, iidx) =>
+                                iidx === idx ? { ...i, quantity: '' } : i
+                              )
+                              updatePlan(plan.id, { items: updatedItems })
+                              return
+                            }
+                            const newQty = parseInt(val)
+                            if (isNaN(newQty) || newQty < 1) return
                             const newSubtotal = newQty * item.unitPrice
                             const updatedItems = plan.items.map((i, iidx) =>
                               iidx === idx ? { ...i, quantity: newQty, subtotal: newSubtotal } : i

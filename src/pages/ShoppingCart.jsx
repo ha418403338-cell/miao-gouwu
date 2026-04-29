@@ -250,7 +250,11 @@ export default function ShoppingCart({ onNavigate }) {
                             min="1"
                             value={item.quantity}
                             onChange={(e) => {
-                              const val = parseInt(e.target.value)
+                              const raw = e.target.value
+                              if (raw === '') {
+                                return
+                              }
+                              const val = parseInt(raw)
                               if (!isNaN(val) && val >= 1) {
                                 updateCartItemQuantity(item.productId, val)
                               }
@@ -281,10 +285,8 @@ export default function ShoppingCart({ onNavigate }) {
                       <div className="flex gap-2 mt-3">
                         <button
                           onClick={() => {
-                            setEditingItem({
-                              ...item,
-                              subtotal: (item.unitPrice * item.quantity).toFixed(2)
-                            })
+                            const subtotal = item.subtotal > 0 ? item.subtotal : item.unitPrice * item.quantity
+                            setEditingItem({ ...item, subtotal })
                             setIsCopyMode(false)
                             setShowEditModal(true)
                           }}
@@ -294,10 +296,8 @@ export default function ShoppingCart({ onNavigate }) {
                         </button>
                         <button
                           onClick={() => {
-                            setEditingItem({
-                              ...item,
-                              subtotal: (item.unitPrice * item.quantity).toFixed(2)
-                            })
+                            const subtotal = item.subtotal > 0 ? item.subtotal : item.unitPrice * item.quantity
+                            setEditingItem({ ...item, subtotal })
                             setIsCopyMode(true)
                             setShowEditModal(true)
                           }}
@@ -576,11 +576,17 @@ export default function ShoppingCart({ onNavigate }) {
                     min="1"
                     value={editingItem.quantity || ''}
                     onChange={(e) => {
-                      const val = e.target.value
-                      const qty = parseInt(val) || 1
+                      const raw = e.target.value
+                      if (raw === '') {
+                        setEditingItem({ ...editingItem, quantity: '' })
+                        return
+                      }
+                      const val = parseInt(raw)
+                      if (isNaN(val) || val < 1) return
+                      const qty = val
                       const numVal = parseFloat(editingItem.subtotal) || 0
-                      setEditingItem({ 
-                        ...editingItem, 
+                      setEditingItem({
+                        ...editingItem,
                         quantity: val,
                         subtotal: numVal > 0 ? numVal.toString() : editingItem.subtotal,
                         unitPrice: qty > 0 && numVal > 0 ? numVal / qty : editingItem.unitPrice
@@ -607,15 +613,18 @@ export default function ShoppingCart({ onNavigate }) {
                 <input
                   type="number"
                   step="0.01"
-                  value={editingItem.subtotal || ''}
+                  value={editingItem.subtotal !== undefined && editingItem.subtotal !== null
+                    ? editingItem.subtotal
+                    : (editingItem.unitPrice * editingItem.quantity).toFixed(2)
+                  }
                   onChange={(e) => {
-                    const val = e.target.value
+                    const raw = e.target.value
+                    const val = raw === '' ? '' : parseFloat(raw)
                     const qty = parseInt(editingItem.quantity) || 1
-                    const numVal = parseFloat(val) || 0
-                    setEditingItem({ 
-                      ...editingItem, 
-                      subtotal: val,
-                      unitPrice: qty > 0 ? numVal / qty : 0
+                    setEditingItem({
+                      ...editingItem,
+                      subtotal: raw === '' ? '' : val,
+                      unitPrice: raw === '' || isNaN(val) ? editingItem.unitPrice : (qty > 0 ? val / qty : 0)
                     })
                   }}
                   className="w-full px-3 py-2 border rounded-lg"
@@ -649,9 +658,21 @@ export default function ShoppingCart({ onNavigate }) {
                   type="button"
                   onClick={() => {
                     if (isCopyMode) {
-                      const newItem = { ...editingItem }
-                      delete newItem.productId
-                      addToCart(newItem)
+                      addToCart({
+                        productName: editingItem.productName,
+                        brand: editingItem.brand || '',
+                        spec: editingItem.spec || '',
+                        unit: editingItem.unit || '',
+                        quantity: editingItem.quantity,
+                        unitPrice: parseFloat(editingItem.subtotal) / editingItem.quantity,
+                        platform: editingItem.platform || '淘宝',
+                        netContent: editingItem.netContent,
+                        netContentUnit: editingItem.netContentUnit,
+                        netContentUnitPrice: editingItem.netContentUnitPrice,
+                        converterMainUnit: editingItem.converterMainUnit,
+                        converterMiddleUnit: editingItem.converterMiddleUnit,
+                        converterMiddleUnitName: editingItem.converterMiddleUnitName,
+                      })
                       alert('商品已复制到待购清单！')
                     } else {
                       updateCartItemQuantity(editingItem.productId, editingItem.quantity)

@@ -28,6 +28,7 @@ export default function QuickCompare() {
   const [compareResult, setCompareResult] = useState(null)
   const [showSaveForm, setShowSaveForm] = useState(false)
   const [saveFormData, setSaveFormData] = useState(null)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const isInitialized = useRef(false)
   
   // 单品实时比价状态
@@ -316,15 +317,7 @@ export default function QuickCompare() {
         <div className="flex justify-between items-center mb-3">
           <h2 className="font-medium text-gray-700">单品实时比价</h2>
           <button
-            onClick={() => setSingleItem({
-              productName: '',
-              brand: '',
-              quantity: '',
-              unit: 'g',
-              price: '',
-              netContent: '',
-              netContentUnit: 'g',
-            })}
+            onClick={() => setShowClearConfirm(true)}
             className="px-3 py-1 bg-gray-500 text-white text-sm rounded-lg"
           >
             清空
@@ -1023,6 +1016,43 @@ export default function QuickCompare() {
                   保存
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 清空确认弹窗 */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-sm p-4">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">确认清空</h3>
+            <p className="text-gray-600 mb-4">确定要清空所有临时比价内容吗？</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowClearConfirm(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-600"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSingleItem({
+                    productName: '',
+                    brand: '',
+                    quantity: '',
+                    unit: 'g',
+                    price: '',
+                    netContent: '',
+                    netContentUnit: 'g',
+                  })
+                  setShowClearConfirm(false)
+                }}
+                className="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium"
+              >
+                确认清空
+              </button>
             </div>
           </div>
         </div>
