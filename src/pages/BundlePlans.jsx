@@ -56,19 +56,31 @@ export default function BundlePlans() {
       alert('请填写方案名称')
       return
     }
-    const { cartItems } = usePlans.getState ? usePlans.getState() : { cartItems: [] }
-    if (cartItems.length === 0) {
-      alert('待购清单为空，请先添加商品')
-      return
+    // 编辑时用现有方案的 items，新建时用待购清单
+    let planItems, totalOriginal, totalActual
+    if (editingId) {
+      // 编辑模式：从现有方案里找到对应 items
+      const existingPlan = plans.find(p => p.id === editingId)
+      planItems = existingPlan ? existingPlan.items : []
+      totalOriginal = planItems.reduce((sum, item) => sum + item.subtotal, 0)
+      totalActual = calcTotalActual(totalOriginal, formData.couponType, formData.couponValue)
+    } else {
+      // 新建模式：用待购清单（cartItems 来自顶部 usePlans() 解构）
+      if (cartItems.length === 0) {
+        alert('待购清单为空，请先添加商品')
+        return
+      }
+      planItems = cartItems
+      totalOriginal = planItems.reduce((sum, item) => sum + item.subtotal, 0)
+      totalActual = calcTotalActual(totalOriginal, formData.couponType, formData.couponValue)
     }
-    const totalOriginal = cartItems.reduce((sum, item) => sum + item.subtotal, 0)
-    const totalActual = calcTotalActual(totalOriginal, formData.couponType, formData.couponValue)
     const plan = {
       planName: formData.planName,
       platform: formData.platform,
-      items: cartItems.map((item) => ({
+      items: planItems.map((item) => ({
         productId: item.productId,
         productName: item.productName,
+        brand: item.brand || '',
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         subtotal: item.subtotal,

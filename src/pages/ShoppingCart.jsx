@@ -664,7 +664,9 @@ export default function ShoppingCart({ onNavigate }) {
                         spec: editingItem.spec || '',
                         unit: editingItem.unit || '',
                         quantity: editingItem.quantity,
-                        unitPrice: parseFloat(editingItem.subtotal) / editingItem.quantity,
+                        unitPrice: editingItem.quantity > 0
+                          ? (parseFloat(editingItem.subtotal) || 0) / editingItem.quantity
+                          : editingItem.unitPrice || 0,
                         platform: editingItem.platform || '淘宝',
                         netContent: editingItem.netContent,
                         netContentUnit: editingItem.netContentUnit,

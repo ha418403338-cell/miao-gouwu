@@ -117,7 +117,7 @@ export default function ProductLibrary() {
 
   // 编辑商品
   const handleEdit = (product) => {
-    setFormData({ ...product })
+    setFormData({ category: '粮油调料', ...product })
     setEditingId(product.id)
     setShowForm(true)
     if (product.netContent && product.netContent > 0) {
