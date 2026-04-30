@@ -9,7 +9,7 @@ const COUPON_TYPES = [
 ]
 
 export default function ShoppingCart({ onNavigate }) {
-  const { cartItems, removeFromCart, updateCartItemQuantity, clearCart, removeFromCartBatch, addPlan, toggleCartItemPin } = usePlans()
+  const { cartItems, addToCart, removeFromCart, updateCartItemQuantity, clearCart, removeFromCartBatch, addPlan, toggleCartItemPin } = usePlans()
   const { addProduct } = useProducts()
   const [selectedItems, setSelectedItems] = useState([])
   const [showCreatePlan, setShowCreatePlan] = useState(false)
