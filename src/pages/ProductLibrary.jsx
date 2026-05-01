@@ -156,7 +156,7 @@ export default function ProductLibrary() {
   const handleCopy = (product) => {
     resetForm()
     const { id, createdAt, ...rest } = product
-    setFormData({ ...rest })
+    setFormData({ category: '粮油调料', ...rest })
     setEditingId(null)
     setShowForm(true)
   }
