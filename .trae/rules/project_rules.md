@@ -136,3 +136,24 @@ BundlePlan {
 单位：g / kg / ml / L / 片 / 个 / 瓶 / 罐 / 盒 / 袋 / 包 / 条 / 块 / 套 / 双 / 张 / 卷 / 件
 净含量单位：g / kg / ml / L / 抽 / 包
 建议将这些常量提取到 src/utils/constants.js 统一管理，各页面从该文件引入。
+
+### Skill 5：表单预填数据兼容性处理
+编辑/复制旧数据时，旧记录可能缺少新增字段（如 category、converterMainUnit 等）。
+预填 formData 时必须先写默认值再用数据覆盖：
+setFormData({ category: '粮油调料', unit: 'g', ...product })
+禁止直接 setFormData({ ...product })，否则旧数据会导致验证失败。
+
+### Skill 6：多模式共用 handleSubmit 的正确写法
+新建和编辑共用同一个提交函数时，必须用 editingId 区分逻辑分支：
+- 编辑模式：从现有数据里取 items/关联数据，不依赖其他模块的实时状态
+- 新建模式：才从其他模块（如待购清单）读取数据
+禁止在 handleSubmit 里用 hook.getState() 这类写法，usePlans/useProducts 
+是普通 useState hook，没有 getState 方法。
+
+### Skill 7：跨页面状态持久化
+切换页面时组件会重新渲染，useState 的值会丢失。
+需要在页面切换后恢复的状态（如临时比价输入内容），必须同步存入 localStorage。
+使用 useRef(false) 作为初始化标记，避免恢复完成前被保存逻辑覆盖：
+const isInitialized = useRef(false)
+恢复的 useEffect 末尾设 isInitialized.current = true
+保存的 useEffect 开头判断 if (!isInitialized.current) return

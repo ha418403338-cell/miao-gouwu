@@ -61,13 +61,37 @@ export default function useProducts() {
     return newProduct
   }
 
+  // 添加价格历史记录
+  const addPriceHistory = (productId, price, date, type = 'actual') => {
+    const newProducts = products.map(p => {
+      if (p.id !== productId) return p
+      const history = p.priceHistory || []
+      const filtered = history.filter(h =>
+        !(h.date === date && h.type === type)
+      )
+      return {
+        ...p,
+        priceHistory: [...filtered, { price, date, type }]
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+      }
+    })
+    setProducts(newProducts)
+    saveToStorage(newProducts)
+  }
+
   // 更新商品
   const updateProduct = (id, updates) => {
+    const existing = products.find(p => p.id === id)
     const newProducts = products.map((p) =>
       p.id === id ? { ...p, ...updates } : p
     )
     setProducts(newProducts)
     saveToStorage(newProducts)
+    // 如果价格有变化，自动记录市场价历史
+    if (existing && updates.price && updates.price !== existing.price) {
+      const today = new Date().toISOString().split('T')[0]
+      addPriceHistory(id, updates.unitPrice || updates.price, today, 'market')
+    }
   }
 
   // 删除商品
@@ -105,6 +129,7 @@ export default function useProducts() {
     addProduct,
     addProducts,
     updateProduct,
+    addPriceHistory,
     deleteProduct,
     getProductById,
     clearAllProducts,

@@ -831,6 +831,15 @@ export default function BundlePlans() {
                   onClick={() => {
                     const amount = markPurchasedAmount ? parseFloat(markPurchasedAmount) : markPurchasingPlan.totalActual
                     markAsPurchased(markPurchasingPlan.id, amount)
+                    const purchaseDate = new Date().toISOString().split('T')[0]
+                    markPurchasingPlan.items.forEach(item => {
+                      const matched = products.find(p =>
+                        p.productName === item.productName && p.brand === item.brand
+                      )
+                      if (matched && item.actualPaidPrice) {
+                        addPriceHistory(matched.id, item.actualPaidPrice, purchaseDate, 'actual')
+                      }
+                    })
                     setShowMarkPurchased(false)
                     setMarkPurchasingPlan(null)
                     setMarkPurchasedAmount('')

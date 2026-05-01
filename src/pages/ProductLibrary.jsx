@@ -3,6 +3,7 @@ import useProducts from '../hooks/useProducts'
 import usePlans from '../hooks/usePlans'
 import { convertUnitPrice, convertNetContentUnitPrice, isCountUnit, getStandardNetContentUnit } from '../utils/unitConverter'
 import { PLATFORM_OPTIONS, UNIT_OPTIONS, CATEGORY_OPTIONS, NET_CONTENT_UNIT_OPTIONS } from '../utils/constants'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 export default function ProductLibrary() {
   const { products, addProduct, addProducts, updateProduct, deleteProduct, clearAllProducts } = useProducts()
@@ -38,6 +39,7 @@ export default function ProductLibrary() {
     middleUnitName: '',
     total: 1
   })
+  const [trendProduct, setTrendProduct] = useState(null)
   const [showImportModal, setShowImportModal] = useState(false)
   const [importFile, setImportFile] = useState(null)
   const [importPreview, setImportPreview] = useState(null)
@@ -618,6 +620,14 @@ export default function ProductLibrary() {
                 >
                   复制
                 </button>
+                {product.priceHistory && product.priceHistory.length >= 1 && (
+                  <button
+                    onClick={() => setTrendProduct(product)}
+                    className="px-3 py-1.5 text-sm border border-purple-400 text-purple-500 rounded-lg"
+                  >
+                    走势
+                  </button>
+                )}
               </div>
             </div>
           ))
@@ -1105,6 +1115,116 @@ export default function ProductLibrary() {
               >
                 确认清空
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 价格走势弹窗 */}
+      {trendProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
+          <div className="bg-white rounded-t-2xl w-full max-w-lg p-4 pb-8">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <div className="font-bold text-gray-800">
+                  {trendProduct.brand}·{trendProduct.productName}
+                </div>
+                <div className="text-xs text-gray-400">价格走势</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTrendProduct(null)}
+                className="text-gray-400 text-xl px-2"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex gap-4 mb-3 text-xs">
+              <span className="flex items-center gap-1">
+                <span className="w-4 h-0.5 bg-blue-500 inline-block"></span>
+                实际成交价
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-4 h-0.5 bg-gray-300 inline-block border-dashed border-t border-gray-300"></span>
+                参考库标价
+              </span>
+            </div>
+
+            {(() => {
+              const history = trendProduct.priceHistory || []
+              const allDates = [...new Set(history.map(h => h.date))].sort()
+              const chartData = allDates.map(date => {
+                const actual = history.find(h => h.date === date && h.type === 'actual')
+                const market = history.find(h => h.date === date && h.type === 'market')
+                return {
+                  date: date.slice(5),
+                  actual: actual ? actual.price : null,
+                  market: market ? market.price : null,
+                }
+              })
+              const allPrices = history.map(h => h.price)
+              const minPrice = Math.min(...allPrices)
+              const maxPrice = Math.max(...allPrices)
+              const padding = (maxPrice - minPrice) * 0.2 || 1
+
+              return (
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    />
+                    <YAxis
+                      domain={[minPrice - padding, maxPrice + padding]}
+                      tick={{ fontSize: 11, fill: '#9ca3af' }}
+                      tickFormatter={v => `¥${v.toFixed(2)}`}
+                      width={55}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        `¥${value?.toFixed(4)}/${trendProduct.netContentUnit || trendProduct.unit}`,
+                        name === 'actual' ? '实际成交价' : '参考库标价'
+                      ]}
+                      labelFormatter={label => `日期：${label}`}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="actual"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      dot={{ fill: '#3b82f6', r: 4 }}
+                      connectNulls={false}
+                      name="actual"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="market"
+                      stroke="#d1d5db"
+                      strokeWidth={1.5}
+                      strokeDasharray="4 4"
+                      dot={{ fill: '#d1d5db', r: 3 }}
+                      connectNulls={false}
+                      name="market"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )
+            })()}
+
+            <div className="mt-4 space-y-1 max-h-32 overflow-y-auto">
+              {[...(trendProduct.priceHistory || [])]
+                .reverse()
+                .map((h, i) => (
+                  <div key={i} className="flex justify-between text-sm py-1 border-b border-gray-50">
+                    <span className="text-gray-400">{h.date}</span>
+                    <span className={h.type === 'actual' ? 'text-blue-500' : 'text-gray-400'}>
+                      {h.type === 'actual' ? '实付' : '标价'} ¥{h.price?.toFixed(4)}/{trendProduct.netContentUnit || trendProduct.unit}
+                    </span>
+                  </div>
+                ))
+              }
             </div>
           </div>
         </div>
