@@ -620,14 +620,13 @@ export default function ProductLibrary() {
                 >
                   复制
                 </button>
-                {product.priceHistory && product.priceHistory.length >= 1 && (
-                  <button
-                    onClick={() => setTrendProduct(product)}
-                    className="px-3 py-1.5 text-sm border border-purple-400 text-purple-500 rounded-lg"
-                  >
-                    走势
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setTrendProduct(product)}
+                  className="px-3 py-1.5 text-sm border border-purple-400 text-purple-500 rounded-lg"
+                >
+                  走势
+                </button>
               </div>
             </div>
           ))
@@ -1153,6 +1152,15 @@ export default function ProductLibrary() {
 
             {(() => {
               const history = trendProduct.priceHistory || []
+              
+              if (history.length === 0) {
+                return (
+                  <div className="flex items-center justify-center h-32 text-sm text-gray-400 text-center px-4">
+                    暂无价格记录<br/>编辑商品价格或标记已购买后自动生成走势
+                  </div>
+                )
+              }
+              
               const allDates = [...new Set(history.map(h => h.date))].sort()
               const chartData = allDates.map(date => {
                 const actual = history.find(h => h.date === date && h.type === 'actual')
