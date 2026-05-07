@@ -574,15 +574,14 @@ export default function ProductLibrary() {
                   换算：{product.converterMainUnit}{product.converterMiddleUnitName || ''}×{product.converterMiddleUnit}
                 </div>
               )}
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => handleEdit(product)}
-                  className="flex-1 text-sm text-blue-500 border border-blue-500 rounded py-1"
-                >
-                  编辑
-                </button>
-                <button
-                  onClick={() => {
+              <div className="mt-3 space-y-2">
+                {/* 第一行：编辑 加入清单 删除 复制 */}
+                <div className="flex gap-2">
+                  <button onClick={() => handleEdit(product)}
+                    className="flex-1 text-sm text-blue-500 border border-blue-500 rounded py-1">
+                    编辑
+                  </button>
+                  <button onClick={() => {
                     addToCart({
                       productId: product.id,
                       productName: product.productName,
@@ -604,29 +603,28 @@ export default function ProductLibrary() {
                     })
                     alert('已加入待购清单')
                   }}
-                  className="flex-1 text-sm text-green-500 border border-green-500 rounded py-1"
-                >
-                  加入清单
-                </button>
-                <button
-                  onClick={() => handleDelete(product.id)}
-                  className="flex-1 text-sm text-red-500 border border-red-500 rounded py-1"
-                >
-                  删除
-                </button>
-                <button
-                  onClick={() => handleCopy(product)}
-                  className="flex-1 text-sm text-orange-500 border border-orange-500 rounded py-1"
-                >
-                  复制
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTrendProduct(product)}
-                  className="px-3 py-1.5 text-sm border border-purple-400 text-purple-500 rounded-lg"
-                >
-                  走势
-                </button>
+                    className="flex-1 text-sm text-green-500 border border-green-500 rounded py-1">
+                    加入清单
+                  </button>
+                  <button onClick={() => handleDelete(product.id)}
+                    className="flex-1 text-sm text-red-500 border border-red-500 rounded py-1">
+                    删除
+                  </button>
+                  <button onClick={() => handleCopy(product)}
+                    className="flex-1 text-sm text-orange-500 border border-orange-500 rounded py-1">
+                    复制
+                  </button>
+                </div>
+                {/* 第二行：走势（独占一行，左对齐，小按钮） */}
+                <div className="flex">
+                  <button
+                    type="button"
+                    onClick={() => setTrendProduct(product)}
+                    className="px-4 py-1 text-sm border border-purple-400 text-purple-500 rounded-lg"
+                  >
+                    📈 价格走势
+                  </button>
+                </div>
               </div>
             </div>
           ))

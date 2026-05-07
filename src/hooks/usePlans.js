@@ -169,6 +169,15 @@ export default function usePlans() {
     saveCartToStorage(updated)
   }
 
+  // 更新待购清单中商品
+  const updateCartItem = (productId, updates) => {
+    const updated = cartItems.map(ci =>
+      ci.productId === productId ? { ...ci, ...updates } : ci
+    )
+    setCartItems(updated)
+    saveCartToStorage(updated)
+  }
+
   // 清空待购清单
   const clearCart = () => {
     setCartItems([])
@@ -202,6 +211,7 @@ export default function usePlans() {
     removeFromCart,
     removeFromCartBatch,
     updateCartItemQuantity,
+    updateCartItem,
     clearCart,
     toggleCartItemPin,
   }

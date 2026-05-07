@@ -281,19 +281,26 @@ export default function QuickCompare() {
 
   // 添加到待购清单
   const addItemToCart = (item) => {
+    // 计算单价
+    const unitPrice = item.unitPrice || convertUnitPrice(parseFloat(item.price), parseFloat(item.quantity), item.unit)
+    // 计算净含量单价
+    let netContentUnitPrice = item.netContentUnitPrice
+    if (!netContentUnitPrice && item.netContent) {
+      netContentUnitPrice = convertNetContentUnitPrice(parseFloat(item.price), parseFloat(item.quantity), item.unit, parseFloat(item.netContent), item.netContentUnit)
+    }
     addToCart({
-      productId: item.rowId || item.id,
+      productId: item.rowId || item.id || Date.now().toString(36),
       productName: item.productName,
       brand: item.brand || '',
       spec: item.spec || '',
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
+      quantity: parseFloat(item.quantity),
+      unitPrice: unitPrice,
       unit: item.unit,
-      price: item.price || item.unitPrice,
+      price: parseFloat(item.price),
       platform: item.platform,
-      netContent: item.netContent || null,
+      netContent: item.netContent ? parseFloat(item.netContent) : null,
       netContentUnit: item.netContentUnit || null,
-      netContentUnitPrice: item.netContentUnitPrice || null,
+      netContentUnitPrice: netContentUnitPrice,
       converterMainUnit: item.converterMainUnit || null,
       converterMiddleUnit: item.converterMiddleUnit || null,
       converterMiddleUnitName: item.converterMiddleUnitName || null,
@@ -510,28 +517,7 @@ export default function QuickCompare() {
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={() => {
-                      const netContentUnitPrice = singleItem.netContent
-                        ? convertNetContentUnitPrice(parseFloat(singleItem.price), parseFloat(singleItem.quantity), singleItem.unit, parseFloat(singleItem.netContent), singleItem.netContentUnit)
-                        : null
-                      const item = {
-                        productId: Date.now().toString(36),
-                        productName: singleItem.productName,
-                        brand: singleItem.brand || '',
-                        spec: singleItem.spec || '',
-                        quantity: parseFloat(singleItem.quantity),
-                        unitPrice: convertUnitPrice(parseFloat(singleItem.price), parseFloat(singleItem.quantity), singleItem.unit),
-                        unit: singleItem.unit,
-                        price: parseFloat(singleItem.price),
-                        platform: singleItem.platform || '淘宝',
-                        netContent: singleItem.netContent ? parseFloat(singleItem.netContent) : null,
-                        netContentUnit: singleItem.netContentUnit || null,
-                        netContentUnitPrice: netContentUnitPrice,
-                        converterMainUnit: singleItem.converterMainUnit || null,
-                        converterMiddleUnit: singleItem.converterMiddleUnit || null,
-                        converterMiddleUnitName: singleItem.converterMiddleUnitName || null,
-                      }
-                      addToCart(item)
-                      alert('已加入待购清单')
+                      addItemToCart(singleItem)
                     }}
                     className="flex-1 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium"
                   >

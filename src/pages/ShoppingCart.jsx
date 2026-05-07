@@ -9,7 +9,7 @@ const COUPON_TYPES = [
 ]
 
 export default function ShoppingCart({ onNavigate }) {
-  const { cartItems, addToCart, removeFromCart, updateCartItemQuantity, clearCart, removeFromCartBatch, addPlan, toggleCartItemPin } = usePlans()
+  const { cartItems, addToCart, removeFromCart, updateCartItem, updateCartItemQuantity, clearCart, removeFromCartBatch, addPlan, toggleCartItemPin } = usePlans()
   const { addProduct } = useProducts()
   const [selectedItems, setSelectedItems] = useState([])
   const [showCreatePlan, setShowCreatePlan] = useState(false)
@@ -213,6 +213,12 @@ export default function ShoppingCart({ onNavigate }) {
                       <div className="text-sm text-gray-500 mt-1">
                         {item.platform} · {item.quantity}{item.unit}
                       </div>
+
+                      {item.converterMainUnit && item.converterMiddleUnit && (
+                        <div className="text-xs text-green-600 mt-0.5">
+                          换算：{item.converterMainUnit}{item.converterMiddleUnitName || ''}×{item.converterMiddleUnit}
+                        </div>
+                      )}
                       
                       <div className="flex flex-wrap gap-2 mt-2">
                         <div className="text-blue-500 font-medium">
@@ -677,11 +683,21 @@ export default function ShoppingCart({ onNavigate }) {
                       })
                       alert('商品已复制到待购清单！')
                     } else {
-                      updateCartItemQuantity(editingItem.productId, editingItem.quantity)
-                      const newCart = cartItems.map(ci => 
-                        ci.productId === editingItem.productId ? editingItem : ci
-                      )
-                      localStorage.setItem('huibi_cart', JSON.stringify(newCart))
+                      updateCartItem(editingItem.productId, {
+                        productName: editingItem.productName,
+                        brand: editingItem.brand,
+                        spec: editingItem.spec,
+                        quantity: editingItem.quantity,
+                        unit: editingItem.unit,
+                        platform: editingItem.platform,
+                        unitPrice: editingItem.quantity > 0
+                          ? (parseFloat(editingItem.subtotal) || 0) / editingItem.quantity
+                          : editingItem.unitPrice,
+                        subtotal: parseFloat(editingItem.subtotal) || 0,
+                        netContent: editingItem.netContent,
+                        netContentUnit: editingItem.netContentUnit,
+                        netContentUnitPrice: editingItem.netContentUnitPrice,
+                      })
                       alert('商品已更新！')
                     }
                     setShowEditModal(false)
