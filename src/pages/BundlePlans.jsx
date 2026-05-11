@@ -10,7 +10,7 @@ const COUPON_TYPES = [
 
 export default function BundlePlans() {
   const { plans, addPlan, updatePlan, deletePlan, markAsPurchased, cartItems } = usePlans()
-  const { products, addProduct } = useProducts()
+  const { products, addProduct, addPriceHistory } = useProducts()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [showAddItems, setShowAddItems] = useState(false)
@@ -20,6 +20,7 @@ export default function BundlePlans() {
   const [showMarkPurchased, setShowMarkPurchased] = useState(false)
   const [markPurchasingPlan, setMarkPurchasingPlan] = useState(null)
   const [markPurchasedAmount, setMarkPurchasedAmount] = useState('')
+  const [itemActualPrices, setItemActualPrices] = useState([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deletingPlanId, setDeletingPlanId] = useState(null)
   const [showUnmarkConfirm, setShowUnmarkConfirm] = useState(false)
@@ -94,7 +95,14 @@ export default function BundlePlans() {
       actualPaid: null,
     }
     if (editingId) {
-      updatePlan(editingId, plan)
+      const existingPlan = plans.find(p => p.id === editingId)
+      updatePlan(editingId, {
+        ...plan,
+        isPurchased: existingPlan?.isPurchased || false,
+        purchasedAt: existingPlan?.purchasedAt || null,
+        actualPaid: existingPlan?.actualPaid || null,
+        paidAmount: existingPlan?.paidAmount || null,
+      })
     } else {
       addPlan(plan)
     }
@@ -124,7 +132,16 @@ export default function BundlePlans() {
   // 标记已购买
   const handleMarkPurchased = (plan) => {
     setMarkPurchasingPlan(plan)
-    setMarkPurchasedAmount(plan.totalActual.toFixed(2))
+    const initAmount = plan.totalActual.toFixed(2)
+    setMarkPurchasedAmount(initAmount)
+    // 按原价比例初始化每个商品的实付合计
+    const total = plan.totalOriginal
+    const initPrices = plan.items.map((item, index) => {
+      const ratio = total > 0 ? item.subtotal / total : 1 / plan.items.length
+      const actualTotal = Math.round(plan.totalActual * ratio * 100) / 100
+      return { index, actualTotal: actualTotal.toFixed(2) }
+    })
+    setItemActualPrices(initPrices)
     setShowMarkPurchased(true)
   }
 
@@ -801,54 +818,147 @@ export default function BundlePlans() {
             <div className="p-4 border-b">
               <h2 className="text-lg font-bold">确认标记为已购买？</h2>
             </div>
-            <div className="p-4">
-              <div className="text-sm text-gray-600 mb-3">
+            <div className="p-4 space-y-4">
+              {/* 方案名 */}
+              <div className="text-sm text-gray-600">
                 方案：{markPurchasingPlan.planName}
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">实付金额（选填）</label>
+
+              {/* 实付总价输入 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  实付总价（元）
+                </label>
                 <input
                   type="number"
                   step="0.01"
                   value={markPurchasedAmount}
-                  onChange={(e) => setMarkPurchasedAmount(e.target.value)}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    setMarkPurchasedAmount(raw)
+                    const newTotal = parseFloat(raw)
+                    if (!isNaN(newTotal) && newTotal > 0 && markPurchasingPlan) {
+                      const total = markPurchasingPlan.totalOriginal
+                      const newPrices = markPurchasingPlan.items.map((item, index) => {
+                        const ratio = total > 0 ? item.subtotal / total : 1 / markPurchasingPlan.items.length
+                        const actualTotal = Math.round(newTotal * ratio * 100) / 100
+                        return { index, actualTotal: actualTotal.toFixed(2) }
+                      })
+                      setItemActualPrices(newPrices)
+                    }
+                  }}
                   placeholder="留空则使用计算金额"
                   className="w-full px-3 py-2 border rounded-lg"
                 />
               </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowMarkPurchased(false)
-                    setMarkPurchasingPlan(null)
-                    setMarkPurchasedAmount('')
-                  }}
-                  className="flex-1 py-2 border rounded-lg text-gray-600"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={() => {
-                    const amount = markPurchasedAmount ? parseFloat(markPurchasedAmount) : markPurchasingPlan.totalActual
-                    markAsPurchased(markPurchasingPlan.id, amount)
-                    const purchaseDate = new Date().toISOString().split('T')[0]
-                    markPurchasingPlan.items.forEach(item => {
-                      const matched = products.find(p =>
-                        p.productName === item.productName && p.brand === item.brand
-                      )
-                      if (matched && item.actualPaidPrice) {
-                        addPriceHistory(matched.id, item.actualPaidPrice, purchaseDate, 'actual')
-                      }
-                    })
-                    setShowMarkPurchased(false)
-                    setMarkPurchasingPlan(null)
-                    setMarkPurchasedAmount('')
-                  }}
-                  className="flex-1 py-2 bg-green-500 text-white rounded-lg font-medium"
-                >
-                  确认
-                </button>
+
+              {/* 商品逐个调价列表 */}
+              <div>
+                <div className="text-sm font-medium text-gray-700 mb-2">
+                  各商品实付金额（可手动调整）
+                </div>
+                <div className="space-y-2 max-h-52 overflow-y-auto">
+                  {markPurchasingPlan.items.map((item, index) => {
+                    const priceEntry = itemActualPrices.find(p => p.index === index)
+                    const actualTotal = priceEntry ? priceEntry.actualTotal : ''
+                    const qty = item.quantity || 1
+                    const unitPrice = actualTotal && !isNaN(parseFloat(actualTotal))
+                      ? (parseFloat(actualTotal) / qty).toFixed(4)
+                      : '-'
+                    return (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-800 truncate">
+                            {item.brand}·{item.productName}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {qty}{item.unit || '件'} · 单价 ¥{unitPrice}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-xs text-gray-400">¥</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={actualTotal}
+                            onChange={(e) => {
+                              const newVal = e.target.value
+                              setItemActualPrices(prev =>
+                                prev.map(p => p.index === index ? { ...p, actualTotal: newVal } : p)
+                              )
+                            }}
+                            className="w-20 px-2 py-1 border rounded text-sm text-right"
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
+
+              {/* 底部已分配 vs 实付 对比 */}
+              {(() => {
+                const allocated = itemActualPrices.reduce((sum, p) => sum + (parseFloat(p.actualTotal) || 0), 0)
+                const target = parseFloat(markPurchasedAmount) || 0
+                const diff = Math.abs(allocated - target)
+                const isMatch = diff < 0.02
+                return (
+                  <div className={`text-sm px-3 py-2 rounded-lg ${isMatch ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
+                    已分配 ¥{allocated.toFixed(2)} / 实付 ¥{target.toFixed(2)}
+                    {isMatch ? ' ✓ 金额一致' : ` · 差额 ¥${diff.toFixed(2)}`}
+                  </div>
+                )
+              })()}
+            </div>
+            <div className="flex gap-3 p-4 border-t">
+              <button
+                onClick={() => {
+                  setShowMarkPurchased(false)
+                  setMarkPurchasingPlan(null)
+                  setMarkPurchasedAmount('')
+                  setItemActualPrices([])
+                }}
+                className="flex-1 py-2 border rounded-lg text-gray-600"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  const amount = markPurchasedAmount
+                    ? parseFloat(markPurchasedAmount)
+                    : markPurchasingPlan.totalActual
+
+                  // 用用户调整后的每个商品实付合计覆盖默认平摊
+                  const overridePrices = itemActualPrices
+
+                  // 调用 markAsPurchased，传入 amount
+                  markAsPurchased(markPurchasingPlan.id, amount)
+
+                  // 写入价格历史（用调整后的单价）
+                  const purchaseDate = new Date().toISOString().split('T')[0]
+                  markPurchasingPlan.items.forEach((item, index) => {
+                    const priceEntry = overridePrices.find(p => p.index === index)
+                    const actualTotal = priceEntry ? parseFloat(priceEntry.actualTotal) : null
+                    const qty = item.quantity || 1
+                    const actualPaidPrice = actualTotal ? actualTotal / qty : null
+
+                    const matched = products.find(p =>
+                      p.productName === item.productName && p.brand === item.brand
+                    )
+                    if (matched && actualPaidPrice) {
+                      addPriceHistory(matched.id, actualPaidPrice, purchaseDate, 'actual')
+                    }
+                  })
+
+                  setShowMarkPurchased(false)
+                  setMarkPurchasingPlan(null)
+                  setMarkPurchasedAmount('')
+                  setItemActualPrices([])
+                }}
+                className="flex-1 py-2 bg-green-500 text-white rounded-lg font-medium"
+              >
+                确认
+              </button>
             </div>
           </div>
         </div>
