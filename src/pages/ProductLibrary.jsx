@@ -587,7 +587,9 @@ export default function ProductLibrary() {
                       productName: product.productName,
                       brand: product.brand || '',
                       spec: product.spec || '',
-                      quantity: product.quantity,
+                      quantity: ['g', 'kg', 'ml', 'L', '毫升', '升'].includes(product.unit)
+                        ? 1
+                        : product.quantity,
                       unitPrice: product.unitPrice,
                       unit: product.unit,
                       price: product.price,

@@ -293,7 +293,9 @@ export default function QuickCompare() {
       productName: item.productName,
       brand: item.brand || '',
       spec: item.spec || '',
-      quantity: parseFloat(item.quantity),
+      quantity: ['g', 'kg', 'ml', 'L', '毫升', '升'].includes(item.unit)
+        ? 1
+        : parseFloat(item.quantity),
       unitPrice: unitPrice,
       unit: item.unit,
       price: parseFloat(item.price),
@@ -660,6 +662,7 @@ export default function QuickCompare() {
                     className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm"
                   />
                 </div>
+                {/* 第一行：数量 + 单位 */}
                 <div className="flex gap-2">
                   <input
                     type="number"
@@ -671,22 +674,23 @@ export default function QuickCompare() {
                   <select
                     value={row.unit}
                     onChange={(e) => updateRow(row.rowId, 'unit', e.target.value)}
-                    className="w-20 px-1 py-1 border border-gray-200 rounded text-sm"
+                    className="w-24 px-1 py-1 border border-gray-200 rounded text-sm"
                   >
                     {UNIT_OPTIONS.map((u) => (
                       <option key={u} value={u}>{u}</option>
                     ))}
                   </select>
-                  <div className="flex-1 relative">
-                        <input
-                          type="number"
-                          placeholder="价格 *"
-                          value={row.price}
-                          onChange={(e) => updateRow(row.rowId, 'price', e.target.value)}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm pr-8"
-                        />
-                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">元</div>
-                      </div>
+                </div>
+                {/* 第二行：价格 */}
+                <div className="relative">
+                  <input
+                    type="number"
+                    placeholder="价格 *"
+                    value={row.price}
+                    onChange={(e) => updateRow(row.rowId, 'price', e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-200 rounded text-sm pr-8"
+                  />
+                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">元</div>
                 </div>
                 {isCountUnit(row.unit) && (
                   <div className="flex gap-2">
