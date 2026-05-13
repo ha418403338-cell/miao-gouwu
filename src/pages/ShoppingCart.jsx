@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import usePlans from '../hooks/usePlans'
 import useProducts from '../hooks/useProducts'
-import { PLATFORM_OPTIONS, UNIT_OPTIONS } from '../utils/constants'
+import { PLATFORM_OPTIONS, UNIT_OPTIONS, NET_CONTENT_UNIT_OPTIONS } from '../utils/constants'
 const COUPON_TYPES = [
   { value: 'full_reduce', label: '满减券' },
   { value: 'discount', label: '折扣券' },
@@ -650,6 +650,69 @@ export default function ShoppingCart({ onNavigate }) {
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* 净含量 */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">单个净含量</label>
+                  <input
+                    type="number"
+                    placeholder="如: 500"
+                    value={editingItem.netContent || ''}
+                    onChange={(e) => setEditingItem({ ...editingItem, netContent: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">净含量单位</label>
+                  <select
+                    value={editingItem.netContentUnit || 'g'}
+                    onChange={(e) => setEditingItem({ ...editingItem, netContentUnit: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    {NET_CONTENT_UNIT_OPTIONS.map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* 换算层 */}
+              <div className="space-y-2 p-3 bg-gray-50 rounded-lg">
+                <div className="text-sm font-medium text-gray-600">换算层（选填）</div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">第一层：每件包含多少中间单位</label>
+                    <input
+                      type="number"
+                      placeholder="如: 10"
+                      value={editingItem.converterMainUnit || ''}
+                      onChange={(e) => setEditingItem({ ...editingItem, converterMainUnit: e.target.value })}
+                      className="w-full px-2 py-1 border rounded text-sm"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">中间单位名称</label>
+                    <input
+                      type="text"
+                      placeholder="如: 包、袋"
+                      value={editingItem.converterMiddleUnitName || ''}
+                      onChange={(e) => setEditingItem({ ...editingItem, converterMiddleUnitName: e.target.value })}
+                      className="w-full px-2 py-1 border rounded text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">第二层：每中间单位包含多少最小单位</label>
+                  <input
+                    type="number"
+                    placeholder="如: 100"
+                    value={editingItem.converterMiddleUnit || ''}
+                    onChange={(e) => setEditingItem({ ...editingItem, converterMiddleUnit: e.target.value })}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  />
+                </div>
               </div>
               
               <div className="flex gap-3 pt-2">
